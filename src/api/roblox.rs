@@ -113,7 +113,7 @@ pub fn run_server() -> AppState {
             .with_state(state_for_server);
 
         let addr = SocketAddr::from(([0, 0, 0, 0], 6967));
-        println!("ws://{}/ws", addr);
+        // println!("ws://{}/ws", addr);
 
         let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
         axum::serve(listener, app).await.unwrap();

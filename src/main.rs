@@ -86,13 +86,35 @@ async fn parse_command(current_input: &String, state: &AppState, api_key: &Strin
         }
     }
 
-    // path if its question to ai
-    match ai::ask_ai(api_key.clone(), current_input.clone()).await {
-        Ok(res) => {
-            return res;
-        },
-        Err(e) => eprintln!("Something went wrong!! {}", e),
+    //path if were are telling ai to do shit
+    let result = state.send("FileTree").await;
+    if let Some(response) = result {
+        match ai::ask_ai(api_key.clone(), current_input.clone(), response).await {
+            Ok(res) => {
+
+                // bit shitty code to make the ai capable of overriding files
+                if let Some(first_line) = res.split("<|NL|>").next() {
+                    if first_line == "OVERRIDE" {
+                        let parts: Vec<&str> = res.split("<|NL|>").collect();
+
+                        if parts.len() >= 3 {
+                            let second_third = format!("{} {}", parts[1], parts[2]);
+                            let data = std::iter::once(second_third)
+                                .chain(parts.into_iter().skip(3).map(|s| s.to_string()))
+                                .collect::<Vec<_>>()
+                                .join("<|NL|>");
+                            
+                            let action_res = state.send(format!("{} {}", "Override", data)).await;
+                        }
+                    }
+                }
+
+                return res;
+            },
+            Err(e) => eprintln!("Something went wrong!! {}", e),
+        }
     }
+    
 
     return String::new();
 }
