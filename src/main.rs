@@ -2,10 +2,14 @@ use ratatui::{DefaultTerminal, Frame};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Widget};
 use dotenvy::dotenv;
-use std::env;
+use std::{env};
 
 mod api;
 use api::ai;
+use api::roblox;
+
+use crate::api::roblox::AppState;
+
 
 
 #[tokio::main]
@@ -25,6 +29,8 @@ async fn app(terminal: &mut DefaultTerminal) -> std::io::Result<()> {
     let mut input_text = String::new();
     let mut view_memory: Vec<String> = Vec::new();
     let mut current_pos : i64 = 0; // pos from right side
+    let state = roblox::run_server();
+
 
     let api_key = env::var("GEMINI_API_KEY").expect("no gemini key was provided");
 
@@ -51,13 +57,8 @@ async fn app(terminal: &mut DefaultTerminal) -> std::io::Result<()> {
                         if input_text.replace(" ", "") == "" { continue; }
                         view_memory.push(format!("User: {}", input_text.clone()));
 
-                        match ai::ask_ai(api_key.clone(), input_text.clone()).await {
-                            Ok(res) => {
-                                for line in res.split("<|NL|>") {
-                                    view_memory.push(line.to_string());
-                                }
-                            },
-                            Err(e) => eprintln!("Something went wrong!! {}", e),
+                        for line in parse_command(&input_text, &state, &api_key).await.split("<|NL|>") {
+                            view_memory.push(line.to_string());
                         }
 
                         current_pos = 0;
@@ -70,6 +71,31 @@ async fn app(terminal: &mut DefaultTerminal) -> std::io::Result<()> {
     }
 }
 
+
+async fn parse_command(current_input: &String, state: &AppState, api_key: &String) -> String {
+    // path if we are trying to pass a command
+    if let Some(first_char) = current_input.chars().next() {
+        if first_char == '!' {
+            let command = &current_input[1..];
+
+            let result = state.send(command.to_string()).await;
+
+            if let Some(response) = result {
+                return response;
+            }
+        }
+    }
+
+    // path if its question to ai
+    match ai::ask_ai(api_key.clone(), current_input.clone()).await {
+        Ok(res) => {
+            return res;
+        },
+        Err(e) => eprintln!("Something went wrong!! {}", e),
+    }
+
+    return String::new();
+}
 
 
 fn render_string(text: String, current_pos: &i64, inner_area: Rect, y_pos: u16, buf: &mut ratatui::prelude::Buffer) {
