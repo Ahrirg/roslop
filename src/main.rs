@@ -89,7 +89,7 @@ async fn parse_command(current_input: &String, state: &AppState, api_key: &Strin
     //path if were are telling ai to do shit
     let result = state.send("FileTree").await;
     if let Some(response) = result {
-        match ai::ask_ai(api_key.clone(), current_input.clone(), response).await {
+        match ai::full_ai_pipeline(api_key.clone(), current_input.clone(), response, state).await {
             Ok(res) => {
 
                 // bit shitty code to make the ai capable of overriding files
